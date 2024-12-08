@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>数字翻牌游戏Demo</title>
+<title>九宫翻翻乐（Flip the Nine）</title>
 <style>
   body {
     font-family: sans-serif;
@@ -45,22 +45,22 @@
 </head>
 <body>
 
-<h1>数字翻牌游戏Demo</h1>
+<h1>九宫翻翻乐（Flip the Nine）</h1>
 
 <div class="board" id="board"></div>
 
 <div class="info">
   <p>当前玩家：<span id="currentPlayer"></span></p>
-  <p>下一预期翻的数字：<span id="nextExpected"></span></p>
+  <p>下一期望翻的数字：<span id="nextExpected"></span></p>
   <p id="winnerMsg"></p>
 </div>
 
 <script>
 // 游戏数据
-let playersCount = 2; // 先用2个玩家做示例
-let currentPlayer = 1; // 当前玩家
+let playersCount = 2; // 默认两名玩家
+let currentPlayer = 1; // 当前玩家(1或2)
 let nextExpectedNumber = 1; // 下一个需要翻开的数字
-let revealedCount = 0; // 已经成功翻开的数量
+let revealedCount = 0; // 已成功按序翻开的数量(成功翻出即统计，用来判断胜利)
 
 // 随机生成1-9的排列
 let numbers = shuffle([1,2,3,4,5,6,7,8,9]);
@@ -84,7 +84,7 @@ for (let i = 0; i < 9; i++) {
 }
 
 /**
- * 点击格子处理逻辑
+ * 点击格子事件
  */
 function onCellClick(e) {
   const cell = e.currentTarget;
@@ -96,23 +96,25 @@ function onCellClick(e) {
   const index = parseInt(cell.dataset.index,10);
   const cellNumber = numbers[index];
 
-  // 检查是否是期望的数字
+  // 检查是否是期望数字
   if (cellNumber === nextExpectedNumber) {
     // 正确，翻开格子
     revealCell(cell, cellNumber);
     revealedCount++;
     nextExpectedNumber++;
     if (revealedCount === 9) {
-      // 所有翻完，该玩家胜利
+      // 所有格子都按序翻开，该玩家胜利
       announceWinner(currentPlayer);
     } else {
-      // 可以继续下一步动作(继续点下一个格子)
+      // 可以继续翻下一个数字
       updateUI();
     }
   } else {
-    // 打开的数字不对，回合结束，切换玩家，从1重新开始
+    // 翻错了
     revealCell(cell, cellNumber);
+    // 等待1秒后重新盖上所有格子并切换玩家
     setTimeout(() => {
+      resetBoardState();
       switchPlayer();
     }, 1000);
   }
@@ -124,6 +126,18 @@ function onCellClick(e) {
 function revealCell(cell, number) {
   cell.textContent = number;
   cell.classList.add('revealed');
+}
+
+/**
+ * 重置棋盘状态：将所有已揭开的牌重新盖上
+ */
+function resetBoardState() {
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(cell => {
+    cell.classList.remove('revealed');
+    cell.textContent = '';
+  });
+  revealedCount = 0;
 }
 
 /**
@@ -144,7 +158,7 @@ function updateUI() {
 }
 
 /**
- * 宣布赢家
+ * 宣布获胜玩家
  */
 function announceWinner(player) {
   winnerMsg.textContent = `玩家 ${player} 获胜！`;
@@ -162,7 +176,7 @@ function announceWinner(player) {
 function shuffle(arr) {
   let array = arr.slice();
   for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random()* (i+1));
+    const j = Math.floor(Math.random()*(i+1));
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
