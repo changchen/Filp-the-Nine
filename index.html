@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>数字翻牌游戏Demo</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    margin-top: 50px;
+  }
+  .board {
+    width: 300px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .cell {
+    width: 90px;
+    height: 90px;
+    background: #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 30px;
+    font-weight: bold;
+    user-select: none;
+  }
+  .revealed {
+    background: #fff;
+    cursor: default;
+  }
+  .info {
+    margin-top: 20px;
+  }
+  .winner {
+    color: green;
+    font-weight: bold;
+    font-size: 24px;
+  }
+</style>
+</head>
+<body>
+
+<h1>数字翻牌游戏Demo</h1>
+
+<div class="board" id="board"></div>
+
+<div class="info">
+  <p>当前玩家：<span id="currentPlayer"></span></p>
+  <p>下一预期翻的数字：<span id="nextExpected"></span></p>
+  <p id="winnerMsg"></p>
+</div>
+
+<script>
+// 游戏数据
+let playersCount = 2; // 先用2个玩家做示例
+let currentPlayer = 1; // 当前玩家
+let nextExpectedNumber = 1; // 下一个需要翻开的数字
+let revealedCount = 0; // 已经成功翻开的数量
+
+// 随机生成1-9的排列
+let numbers = shuffle([1,2,3,4,5,6,7,8,9]);
+// 为了测试方便，可以在控制台查看
+console.log("随机生成的九宫格顺序:", numbers);
+
+const board = document.getElementById("board");
+const currentPlayerEl = document.getElementById("currentPlayer");
+const nextExpectedEl = document.getElementById("nextExpected");
+const winnerMsg = document.getElementById("winnerMsg");
+
+updateUI();
+
+// 创建九个格子
+for (let i = 0; i < 9; i++) {
+  const cell = document.createElement('div');
+  cell.className = 'cell';
+  cell.dataset.index = i;
+  cell.addEventListener('click', onCellClick);
+  board.appendChild(cell);
+}
+
+/**
+ * 点击格子处理逻辑
+ */
+function onCellClick(e) {
+  const cell = e.currentTarget;
+  if (cell.classList.contains('revealed')) {
+    // 已揭开的格子不可重复点击
+    return;
+  }
+
+  const index = parseInt(cell.dataset.index,10);
+  const cellNumber = numbers[index];
+
+  // 检查是否是期望的数字
+  if (cellNumber === nextExpectedNumber) {
+    // 正确，翻开格子
+    revealCell(cell, cellNumber);
+    revealedCount++;
+    nextExpectedNumber++;
+    if (revealedCount === 9) {
+      // 所有翻完，该玩家胜利
+      announceWinner(currentPlayer);
+    } else {
+      // 可以继续下一步动作(继续点下一个格子)
+      updateUI();
+    }
+  } else {
+    // 打开的数字不对，回合结束，切换玩家，从1重新开始
+    revealCell(cell, cellNumber);
+    setTimeout(() => {
+      switchPlayer();
+    }, 1000);
+  }
+}
+
+/**
+ * 翻开格子
+ */
+function revealCell(cell, number) {
+  cell.textContent = number;
+  cell.classList.add('revealed');
+}
+
+/**
+ * 切换玩家
+ */
+function switchPlayer() {
+  currentPlayer = currentPlayer % playersCount + 1;
+  nextExpectedNumber = 1;
+  updateUI();
+}
+
+/**
+ * 更新界面显示
+ */
+function updateUI() {
+  currentPlayerEl.textContent = currentPlayer;
+  nextExpectedEl.textContent = nextExpectedNumber;
+}
+
+/**
+ * 宣布赢家
+ */
+function announceWinner(player) {
+  winnerMsg.textContent = `玩家 ${player} 获胜！`;
+  winnerMsg.classList.add('winner');
+  // 禁用点击
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(cell => {
+    cell.removeEventListener('click', onCellClick);
+  });
+}
+
+/**
+ * 数组洗牌函数
+ */
+function shuffle(arr) {
+  let array = arr.slice();
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random()* (i+1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+</script>
+
+</body>
+</html>
