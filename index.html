@@ -10,6 +10,9 @@
     text-align: center;
     margin-top: 50px;
   }
+  h1 {
+    margin-bottom: 30px;
+  }
   .board {
     width: 300px;
     margin: 0 auto;
@@ -17,10 +20,11 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
   }
+  
+  /* 基础样式 */
   .cell {
     width: 90px;
     height: 90px;
-    background: #ccc;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -28,11 +32,24 @@
     font-size: 30px;
     font-weight: bold;
     user-select: none;
+    color: #000;
   }
   .revealed {
     background: #fff;
     cursor: default;
   }
+
+  /* 未翻开的方块颜色根据玩家变化 */
+  /* 玩家1：浅蓝色莫兰迪 */
+  .player1-turn .cell:not(.revealed) {
+    background: #AFC2CB;
+  }
+  
+  /* 玩家2：浅粉色莫兰迪 */
+  .player2-turn .cell:not(.revealed) {
+    background: #D9B6C8;
+  }
+
   .info {
     margin-top: 20px;
   }
@@ -55,7 +72,7 @@
 </head>
 <body>
 
-<h1>九宫翻翻乐（Flip the Nine）</h1>
+<h1>九宫翻翻乐<br>(Flip the Nine)</h1>
 
 <div class="board" id="board"></div>
 
@@ -74,30 +91,24 @@ let currentPlayer = 1; // 当前玩家(1或2)
 let nextExpectedNumber = 1; // 下一个需要翻开的数字
 let revealedCount = 0; // 已成功按序翻开的数量(成功翻出即统计，用来判断胜利)
 
-// 音频上下文（确保在用户交互之后再初始化）
+// 音频上下文（用户交互后即可以用）
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-/**
- * 播放基于数字的音调
- * 利用半音阶计算频率: freq = baseFreq * 2^{(number-1)/12}
- * baseFreq 可任意定义，这里选220Hz为参考
- */
+// 播放基于数字的音调
 function playNoteByNumber(number) {
-  const baseFreq = 220;
+  const baseFreq = 314;
   const freq = baseFreq * Math.pow(2, (number - 1) / 12);
   playTone(freq, 0.5); // 播放0.5秒
 }
 
-/**
- * 使用Web Audio API生成指定频率和持续时间的音调
- */
+// 使用Web Audio API生成指定频率和持续时间的音调
 function playTone(frequency, duration = 0.5) {
   const oscillator = audioContext.createOscillator();
   oscillator.type = 'sine'; // 使用正弦波
   oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
 
   const gainNode = audioContext.createGain();
-  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime); // 控制音量，避免过响
+  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime); // 控制音量
 
   oscillator.connect(gainNode);
   gainNode.connect(audioContext.destination);
@@ -198,11 +209,20 @@ function switchPlayer() {
 }
 
 /**
- * 更新界面显示
+ * 更新界面显示与颜色状态
  */
 function updateUI() {
   currentPlayerEl.textContent = currentPlayer;
   nextExpectedEl.textContent = nextExpectedNumber;
+  
+  // 根据当前玩家给board添加对应的class来控制颜色
+  if (currentPlayer === 1) {
+    board.classList.add('player1-turn');
+    board.classList.remove('player2-turn');
+  } else {
+    board.classList.add('player2-turn');
+    board.classList.remove('player1-turn');
+  }
 }
 
 /**
