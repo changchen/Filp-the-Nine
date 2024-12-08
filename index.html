@@ -36,10 +36,20 @@
   .info {
     margin-top: 20px;
   }
+  .info-label {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin: 10px 0;
+  }
   .winner {
     color: green;
     font-weight: bold;
     font-size: 24px;
+  }
+  .version {
+    margin-top: 30px;
+    font-size: 0.9em;
+    color: #666;
   }
 </style>
 </head>
@@ -50,10 +60,12 @@
 <div class="board" id="board"></div>
 
 <div class="info">
-  <p>当前玩家：<span id="currentPlayer"></span></p>
-  <p>下一期望翻的数字：<span id="nextExpected"></span></p>
+  <p class="info-label">当前玩家：<span id="currentPlayer"></span></p>
+  <p class="info-label">下一期望翻的数字：<span id="nextExpected"></span></p>
   <p id="winnerMsg"></p>
 </div>
+
+<div class="version">Version: 1.0</div>
 
 <script>
 // 游戏数据
@@ -62,9 +74,42 @@ let currentPlayer = 1; // 当前玩家(1或2)
 let nextExpectedNumber = 1; // 下一个需要翻开的数字
 let revealedCount = 0; // 已成功按序翻开的数量(成功翻出即统计，用来判断胜利)
 
+// 音频上下文（确保在用户交互之后再初始化）
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+/**
+ * 播放基于数字的音调
+ * 利用半音阶计算频率: freq = baseFreq * 2^{(number-1)/12}
+ * baseFreq 可任意定义，这里选220Hz为参考
+ */
+function playNoteByNumber(number) {
+  const baseFreq = 220;
+  const freq = baseFreq * Math.pow(2, (number - 1) / 12);
+  playTone(freq, 0.5); // 播放0.5秒
+}
+
+/**
+ * 使用Web Audio API生成指定频率和持续时间的音调
+ */
+function playTone(frequency, duration = 0.5) {
+  const oscillator = audioContext.createOscillator();
+  oscillator.type = 'sine'; // 使用正弦波
+  oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+
+  const gainNode = audioContext.createGain();
+  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime); // 控制音量，避免过响
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  oscillator.start();
+  setTimeout(() => {
+    oscillator.stop();
+  }, duration * 1000);
+}
+
 // 随机生成1-9的排列
 let numbers = shuffle([1,2,3,4,5,6,7,8,9]);
-// 为了测试方便，可以在控制台查看
 console.log("随机生成的九宫格顺序:", numbers);
 
 const board = document.getElementById("board");
@@ -95,6 +140,9 @@ function onCellClick(e) {
 
   const index = parseInt(cell.dataset.index,10);
   const cellNumber = numbers[index];
+
+  // 播放对应音调
+  playNoteByNumber(cellNumber);
 
   // 检查是否是期望数字
   if (cellNumber === nextExpectedNumber) {
