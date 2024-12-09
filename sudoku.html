@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>数独游戏 (Sudoku)</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    margin-top: 50px;
+  }
+  h1 {
+    margin-bottom: 30px;
+  }
+
+  /* 模拟类似flip the nine的色系和风格 */
+  /* 使用player1-turn保持一致的背景色方案 */
+  .board-container.player1-turn {
+    display: inline-block;
+    border: 2px solid #000;
+    padding: 10px;
+    background: #fff;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(9, 40px);
+    grid-template-rows: repeat(9, 40px);
+    gap: 2px;
+    margin: 0 auto;
+  }
+
+  .cell {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    line-height: 40px;
+    cursor: pointer;
+    user-select: none;
+    color: #000;
+    background: #AFC2CB; /* 浅蓝莫兰迪，与flip the nine玩家1类似 */
+  }
+
+  /* 区块边界加粗 */
+  .cell:nth-child(3n+1) {
+    border-left: 2px solid #000;
+  }
+  .cell {
+    border: 1px solid #999;
+  }
+  .cell:nth-child(-n+9) {
+    border-top: 2px solid #000;
+  }
+  .cell:nth-child(9n) {
+    border-right: 2px solid #000;
+  }
+  .board div:nth-child(n+73) {
+    border-bottom: 2px solid #000;
+  }
+
+  /* 已预填的数字不可编辑，用浅灰背景 */
+  .prefilled {
+    background: #D9B6C8; /* 浅粉莫兰迪色 */
+    cursor: default;
+    color: #000;
+  }
+
+  .selected {
+    background: #fff !important;
+  }
+
+  .info {
+    margin-top: 20px;
+  }
+  .info-label {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin: 10px 0;
+  }
+  
+  .winner {
+    color: green;
+    font-weight: bold;
+    font-size: 24px;
+    margin-top: 20px;
+  }
+
+  .version {
+    margin-top: 30px;
+    font-size: 0.9em;
+    color: #666;
+  }
+
+  .controls {
+    margin-top: 20px;
+  }
+  .button {
+    padding: 10px 15px;
+    font-size: 1em;
+    background: #ccc;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #000;
+    margin: 5px;
+    cursor: pointer;
+  }
+  .button:hover {
+    background: #bbb;
+  }
+</style>
+</head>
+<body>
+
+<h1>数独游戏<br>(Sudoku)</h1>
+
+<div class="board-container player1-turn">
+  <div class="board" id="board">
+    <!-- 将在JS中初始化 -->
+  </div>
+</div>
+
+<div class="info">
+  <p class="info-label">通过点击格子，再用键盘输入1-9来填写。</p>
+</div>
+
+<div class="controls">
+  <button class="button" id="checkBtn">检查</button>
+  <a href="index.html" class="button">返回主页</a>
+</div>
+
+<p class="winner" id="statusMsg"></p>
+
+<div class="version">Version: 1.0</div>
+
+<script>
+// 简易数独题目与答案（仅作为示例）
+// 0表示空格，需要玩家填写
+
+// 示例题目（可自行更换）
+const puzzle = [
+  [5,3,0, 0,7,0, 0,0,0],
+  [6,0,0, 1,9,5, 0,0,0],
+  [0,9,8, 0,0,0, 0,6,0],
+
+  [8,0,0, 0,6,0, 0,0,3],
+  [4,0,0, 8,0,3, 0,0,1],
+  [7,0,0, 0,2,0, 0,0,6],
+
+  [0,6,0, 0,0,0, 2,8,0],
+  [0,0,0, 4,1,9, 0,0,5],
+  [0,0,0, 0,8,0, 0,7,9]
+];
+
+// 对应最终正确解答（用于check）
+const solution = [
+  [5,3,4, 6,7,8, 9,1,2],
+  [6,7,2, 1,9,5, 3,4,8],
+  [1,9,8, 3,4,2, 5,6,7],
+
+  [8,5,9, 7,6,1, 4,2,3],
+  [4,2,6, 8,5,3, 7,9,1],
+  [7,1,3, 9,2,4, 8,5,6],
+
+  [9,6,1, 5,3,7, 2,8,4],
+  [2,8,7, 4,1,9, 6,3,5],
+  [3,4,5, 2,8,6, 1,7,9]
+];
+
+const boardEl = document.getElementById('board');
+let selectedCell = null;
+
+// 初始化棋盘
+for (let r = 0; r < 9; r++) {
+  for (let c = 0; c < 9; c++) {
+    const cell = document.createElement('div');
+    cell.classList.add('cell');
+    if (puzzle[r][c] !== 0) {
+      cell.textContent = puzzle[r][c];
+      cell.classList.add('prefilled');
+    } else {
+      cell.addEventListener('click', () => selectCell(cell));
+    }
+    cell.dataset.row = r;
+    cell.dataset.col = c;
+    boardEl.appendChild(cell);
+  }
+}
+
+document.addEventListener('keydown', handleKeyDown);
+document.getElementById('checkBtn').addEventListener('click', checkSolution);
+
+function selectCell(cell) {
+  // 取消之前的选中
+  if (selectedCell) {
+    selectedCell.classList.remove('selected');
+  }
+  selectedCell = cell;
+  selectedCell.classList.add('selected');
+}
+
+function handleKeyDown(e) {
+  if (!selectedCell) return;
+  if (e.key >= '1' && e.key <= '9') {
+    selectedCell.textContent = e.key;
+  } else if (e.key === 'Backspace' || e.key === 'Delete') {
+    // 清空格子
+    if (!selectedCell.classList.contains('prefilled')) {
+      selectedCell.textContent = '';
+    }
+  }
+}
+
+function checkSolution() {
+  // 将用户当前填写的结果读取出来
+  const userSolution = [];
+  for (let r = 0; r < 9; r++) {
+    userSolution[r] = [];
+    for (let c = 0; c < 9; c++) {
+      const cell = boardEl.children[r*9 + c];
+      const val = parseInt(cell.textContent,10);
+      userSolution[r][c] = isNaN(val) ? 0 : val;
+    }
+  }
+
+  // 对比用户解答与正确答案
+  let correct = true;
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (userSolution[r][c] !== solution[r][c]) {
+        correct = false;
+        break;
+      }
+    }
+    if (!correct) break;
+  }
+
+  const statusMsg = document.getElementById('statusMsg');
+  if (correct) {
+    statusMsg.textContent = "恭喜！你完成了数独！";
+  } else {
+    statusMsg.textContent = "解答不正确，请再试一次。";
+  }
+}
+</script>
+
+</body>
+</html>

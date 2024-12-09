@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>分形游戏</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    margin: 20px;
+    background-color: #f0f0f0; /* 与主页一致的背景色 */
+  }
+  h1 {
+    margin-bottom: 20px;
+    color: #333;
+  }
+  .game-container {
+    display: inline-block;
+    position: relative;
+  }
+  svg {
+    border: 2px solid #AFC2CB; /* 与Flip the Nine的玩家1色系保持一致 */
+    background-color: #fff;
+    border-radius: 10px;
+  }
+  #equilateralTriangle {
+    pointer-events: none; /* 确保顶点可以接收点击事件 */
+  }
+  .info {
+    margin-top: 20px;
+    font-size: 1.2em;
+    font-weight: bold;
+  }
+  .version {
+    margin-top: 30px;
+    font-size: 0.9em;
+    color: #666;
+  }
+  .controls {
+    margin-top: 20px;
+  }
+  .button {
+    padding: 10px 15px;
+    font-size: 1em;
+    background: #ccc;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #000;
+    margin: 5px;
+    cursor: pointer;
+    border: none;
+  }
+  .button:hover {
+    background: #bbb;
+  }
+  .vertex {
+    fill: #0000FF; /* 蓝色表示顶点 */
+    cursor: pointer;
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: transform 0.2s, fill 0.2s;
+  }
+  .vertex.hovered {
+    fill: #1E90FF; /* 悬停时更亮的蓝色 */
+    transform: scale(1.5); /* 放大效果 */
+  }
+  .internal-point {
+    fill: #008000; /* 绿色表示内部点 */
+    cursor: pointer;
+  }
+  .internal-point.hovered {
+    fill: #32CD32; /* 悬停时更亮的绿色 */
+    r: 8;
+  }
+  .midpoint {
+    fill: #FF6347; /* 红色点表示中点 */
+    r: 5;
+  }
+  .preview-line {
+    stroke: #FF0000;
+    stroke-width: 2;
+    stroke-dasharray: 4;
+  }
+</style>
+</head>
+<body>
+
+<h1>分形游戏</h1>
+
+<div class="game-container">
+  <svg id="triangleSvg" width="500" height="500">
+    <!-- 等边三角形 -->
+    <polygon id="equilateralTriangle" points="" fill="#AFC2CB" stroke="#333" stroke-width="2"/>
+    <!-- 顶点标记 -->
+    <circle id="vertex0" class="vertex" cx="" cy="" r="6"/>
+    <circle id="vertex1" class="vertex" cx="" cy="" r="6"/>
+    <circle id="vertex2" class="vertex" cx="" cy="" r="6"/>
+    <!-- 预览直线 -->
+    <line id="previewLine" class="preview-line" x1="" y1="" x2="" y2="" visibility="hidden"/>
+    <!-- 预览中点 -->
+    <circle id="previewMidpoint" class="midpoint" cx="" cy="" r="5" visibility="hidden"/>
+  </svg>
+</div>
+
+<div class="info">
+  <p>选择两个点：一个顶点和一个内部点</p>
+</div>
+
+<div class="controls">
+  <button class="button" id="resetBtn">重置游戏</button>
+  <a href="index.html" class="button">返回主页</a>
+</div>
+
+<p class="version">Version: 1.0</p>
+
+<script>
+  // 设置SVG和等边三角形
+  const svg = document.getElementById('triangleSvg');
+  const triangle = document.getElementById('equilateralTriangle');
+  const resetBtn = document.getElementById('resetBtn');
+  const previewLine = document.getElementById('previewLine');
+  const previewMidpoint = document.getElementById('previewMidpoint');
+
+  const width = svg.clientWidth;
+  const height = svg.clientHeight;
+
+  // 计算等边三角形的顶点坐标
+  const side = 400;
+  const heightOfTriangle = side * Math.sqrt(3) / 2;
+  const offsetX = (width - side) / 2;
+  const offsetY = (height - heightOfTriangle) / 2;
+
+  // 定义三个顶点
+  const vertices = [
+    {x: offsetX + side / 2, y: offsetY}, // 顶点0（最上面）
+    {x: offsetX, y: offsetY + heightOfTriangle}, // 顶点1（左下）
+    {x: offsetX + side, y: offsetY + heightOfTriangle} // 顶点2（右下）
+  ];
+
+  // 设置三角形的点
+  triangle.setAttribute('points', vertices.map(v => `${v.x},${v.y}`).join(' '));
+
+  // 设置顶点圆圈的位置
+  vertices.forEach((v, index) => {
+    const vertex = document.getElementById(`vertex${index}`);
+    vertex.setAttribute('cx', v.x);
+    vertex.setAttribute('cy', v.y);
+  });
+
+  // 游戏状态
+  let selectedVertex = null;
+  const midpoints = [];
+
+  // 添加事件监听器
+  document.querySelectorAll('.vertex').forEach(vertex => {
+    vertex.addEventListener('mouseenter', onVertexHover);
+    vertex.addEventListener('mouseleave', onVertexLeave);
+    vertex.addEventListener('click', onVertexClick);
+  });
+
+  svg.addEventListener('mousemove', onSvgMouseMove);
+  svg.addEventListener('mouseleave', onSvgMouseLeave);
+  svg.addEventListener('click', onInternalPointClick);
+
+  resetBtn.addEventListener('click', resetGame);
+
+  function onVertexHover(e) {
+    e.target.classList.add('hovered');
+  }
+
+  function onVertexLeave(e) {
+    e.target.classList.remove('hovered');
+  }
+
+  function onVertexClick(e) {
+    if (selectedVertex !== null) return; // 已选择顶点，等待内部点选择
+    selectedVertex = e.target;
+    // Optionally, highlight the selected vertex further if needed
+    console.log('Selected Vertex:', e.target.id);
+  }
+
+  function onSvgMouseMove(e) {
+    if (selectedVertex === null) return; // 未选择顶点，无法选择内部点
+
+    const rect = svg.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // 检查鼠标是否在三角形内部
+    if (isPointInTriangle({x, y}, vertices[0], vertices[1], vertices[2])) {
+      // 显示预览
+      previewLine.setAttribute('x1', selectedVertex.getAttribute('cx'));
+      previewLine.setAttribute('y1', selectedVertex.getAttribute('cy'));
+      previewLine.setAttribute('x2', x);
+      previewLine.setAttribute('y2', y);
+      previewLine.style.visibility = 'visible';
+
+      const midX = (parseFloat(selectedVertex.getAttribute('cx')) + x) / 2;
+      const midY = (parseFloat(selectedVertex.getAttribute('cy')) + y) / 2;
+      previewMidpoint.setAttribute('cx', midX);
+      previewMidpoint.setAttribute('cy', midY);
+      previewMidpoint.style.visibility = 'visible';
+    } else {
+      // 隐藏预览
+      previewLine.style.visibility = 'hidden';
+      previewMidpoint.style.visibility = 'hidden';
+    }
+  }
+
+  function onSvgMouseLeave(e) {
+    // 隐藏预览
+    previewLine.style.visibility = 'hidden';
+    previewMidpoint.style.visibility = 'hidden';
+  }
+
+  function onInternalPointClick(e) {
+    if (selectedVertex === null) return; // 未选择顶点
+
+    const rect = svg.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // 检查点击是否在三角形内部
+    if (!isPointInTriangle({x, y}, vertices[0], vertices[1], vertices[2])) return;
+
+    // 创建中点并保留
+    const midX = (parseFloat(selectedVertex.getAttribute('cx')) + x) / 2;
+    const midY = (parseFloat(selectedVertex.getAttribute('cy')) + y) / 2;
+
+    const midpoint = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    midpoint.setAttribute('cx', midX);
+    midpoint.setAttribute('cy', midY);
+    midpoint.setAttribute('r', 5);
+    midpoint.setAttribute('class', 'midpoint');
+    svg.appendChild(midpoint);
+
+    midpoints.push({x: midX, y: midY});
+
+    // 隐藏预览
+    previewLine.style.visibility = 'hidden';
+    previewMidpoint.style.visibility = 'hidden';
+
+    // 重置选择
+    selectedVertex = null;
+
+    console.log('Midpoint Added:', {x: midX, y: midY});
+  }
+
+  function isPointInTriangle(p, p0, p1, p2) {
+    // Barycentric Technique
+    const area = 0.5 * (-p1.y * p2.x + p0.y * (-p1.x + p2.x) + p0.x * (p1.y - p2.y) + p1.x * p2.y);
+    const s = 1/(2*area)*(p0.y*p2.x - p0.x*p2.y + (p2.y - p0.y)*p.x + (p0.x - p2.x)*p.y);
+    const t = 1/(2*area)*(p0.x*p1.y - p0.y*p1.x + (p0.y - p1.y)*p.x + (p1.x - p0.x)*p.y);
+    return s > 0 && t > 0 && (s + t) < 1;
+  }
+
+  function resetGame() {
+    // 移除所有中点
+    midpoints.forEach(mp => {
+      const circles = svg.querySelectorAll('.midpoint');
+      circles.forEach(circle => {
+        if (parseFloat(circle.getAttribute('cx')) === mp.x && parseFloat(circle.getAttribute('cy')) === mp.y) {
+          svg.removeChild(circle);
+        }
+      });
+    });
+    midpoints.length = 0;
+
+    // 移除已选择的顶点高亮
+    document.querySelectorAll('.vertex.selected').forEach(v => {
+      v.classList.remove('selected');
+    });
+    selectedVertex = null;
+
+    // 隐藏预览
+    previewLine.style.visibility = 'hidden';
+    previewMidpoint.style.visibility = 'hidden';
+
+    console.log('Game Reset');
+  }
+</script>
+
+</body>
+</html>

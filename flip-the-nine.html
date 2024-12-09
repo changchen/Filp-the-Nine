@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>九宫翻翻乐（Flip the Nine）</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    margin-top: 50px;
+  }
+  h1 {
+    margin-bottom: 30px;
+  }
+  .board {
+    width: 300px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  
+  /* 基础样式 */
+  .cell {
+    width: 90px;
+    height: 90px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 30px;
+    font-weight: bold;
+    user-select: none;
+    color: #000;
+  }
+  .revealed {
+    background: #fff;
+    cursor: default;
+  }
+
+  /* 不同玩家时的底色 */
+  /* 玩家1：浅蓝色莫兰迪 */
+  .player1-turn .cell:not(.revealed) {
+    background: #AFC2CB;
+  }
+  
+  /* 玩家2：浅粉色莫兰迪 */
+  .player2-turn .cell:not(.revealed) {
+    background: #D9B6C8;
+  }
+
+  .info {
+    margin-top: 20px;
+  }
+  .info-label {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin: 10px 0;
+  }
+  .winner {
+    color: green;
+    font-weight: bold;
+    font-size: 24px;
+  }
+  .version {
+    margin-top: 30px;
+    font-size: 0.9em;
+    color: #666;
+  }
+
+  .back-button {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 15px;
+    font-size: 1em;
+    background: #ccc;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #000;
+  }
+  .back-button:hover {
+    background: #bbb;
+  }
+</style>
+</head>
+<body>
+
+<h1>九宫翻翻乐<br>(Flip the Nine)</h1>
+
+<div class="board" id="board"></div>
+
+<div class="info">
+  <p class="info-label">当前玩家：<span id="currentPlayer"></span></p>
+  <p class="info-label">下一期望翻的数字：<span id="nextExpected"></span></p>
+  <p id="winnerMsg"></p>
+</div>
+
+<div class="version">Version: 1.0</div>
+
+<a href="index.html" class="back-button">返回主页</a>
+
+<script>
+// 游戏数据
+let playersCount = 2; // 默认两名玩家
+let currentPlayer = 1; // 当前玩家(1或2)
+let nextExpectedNumber = 1; // 下一个需要翻开的数字
+let revealedCount = 0; // 已成功按序翻开的数量(成功翻出即统计，用来判断胜利)
+
+// 音频上下文（用户交互后即可以用）
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+// 播放基于数字的音调
+function playNoteByNumber(number) {
+  const baseFreq = 314;
+  const freq = baseFreq * Math.pow(2, (number - 1) / 12);
+  playTone(freq, 0.2); // 播放0.5秒
+}
+
+// 使用Web Audio API生成指定频率和持续时间的音调
+function playTone(frequency, duration = 0.5) {
+  const oscillator = audioContext.createOscillator();
+  oscillator.type = 'sine'; // 使用正弦波
+  oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+
+  const gainNode = audioContext.createGain();
+  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime); // 控制音量
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  oscillator.start();
+  setTimeout(() => {
+    oscillator.stop();
+  }, duration * 1000);
+}
+
+// 随机生成1-9的排列
+let numbers = shuffle([1,2,3,4,5,6,7,8,9]);
+console.log("随机生成的九宫格顺序:", numbers);
+
+const board = document.getElementById("board");
+const currentPlayerEl = document.getElementById("currentPlayer");
+const nextExpectedEl = document.getElementById("nextExpected");
+const winnerMsg = document.getElementById("winnerMsg");
+
+updateUI();
+
+// 创建九个格子
+for (let i = 0; i < 9; i++) {
+  const cell = document.createElement('div');
+  cell.className = 'cell';
+  cell.dataset.index = i;
+  cell.addEventListener('click', onCellClick);
+  board.appendChild(cell);
+}
+
+/**
+ * 点击格子事件
+ */
+function onCellClick(e) {
+  const cell = e.currentTarget;
+  if (cell.classList.contains('revealed')) {
+    // 已揭开的格子不可重复点击
+    return;
+  }
+
+  const index = parseInt(cell.dataset.index,10);
+  const cellNumber = numbers[index];
+
+  // 播放对应音调
+  playNoteByNumber(cellNumber);
+
+  // 检查是否是期望数字
+  if (cellNumber === nextExpectedNumber) {
+    // 正确，翻开格子
+    revealCell(cell, cellNumber);
+    revealedCount++;
+    nextExpectedNumber++;
+    if (revealedCount === 9) {
+      // 所有格子都按序翻开，该玩家胜利
+      announceWinner(currentPlayer);
+    } else {
+      // 可以继续翻下一个数字
+      updateUI();
+    }
+  } else {
+    // 翻错了
+    revealCell(cell, cellNumber);
+    // 等待1秒后重新盖上所有格子并切换玩家
+    setTimeout(() => {
+      resetBoardState();
+      switchPlayer();
+    }, 1000);
+  }
+}
+
+/**
+ * 翻开格子
+ */
+function revealCell(cell, number) {
+  cell.textContent = number;
+  cell.classList.add('revealed');
+}
+
+/**
+ * 重置棋盘状态：将所有已揭开的牌重新盖上
+ */
+function resetBoardState() {
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(cell => {
+    cell.classList.remove('revealed');
+    cell.textContent = '';
+  });
+  revealedCount = 0;
+}
+
+/**
+ * 切换玩家
+ */
+function switchPlayer() {
+  currentPlayer = currentPlayer % playersCount + 1;
+  nextExpectedNumber = 1;
+  updateUI();
+}
+
+/**
+ * 更新界面显示与颜色状态
+ */
+function updateUI() {
+  currentPlayerEl.textContent = currentPlayer;
+  nextExpectedEl.textContent = nextExpectedNumber;
+  
+  // 根据当前玩家给board添加对应的class来控制颜色
+  if (currentPlayer === 1) {
+    board.classList.add('player1-turn');
+    board.classList.remove('player2-turn');
+  } else {
+    board.classList.add('player2-turn');
+    board.classList.remove('player1-turn');
+  }
+}
+
+/**
+ * 宣布获胜玩家
+ */
+function announceWinner(player) {
+  winnerMsg.textContent = `玩家 ${player} 获胜！`;
+  winnerMsg.classList.add('winner');
+  // 禁用点击
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(cell => {
+    cell.removeEventListener('click', onCellClick);
+  });
+}
+
+/**
+ * 数组洗牌函数
+ */
+function shuffle(arr) {
+  let array = arr.slice();
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+</script>
+
+</body>
+</html>
