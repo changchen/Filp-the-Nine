@@ -14,12 +14,21 @@
   h1 {
     margin-bottom: 20px;
     color: #333;
+    font-size: 1.5em; /* 调整标题字体大小 */
   }
   .game-container {
-    display: inline-block;
-    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: 500px; /* 最大宽度限制 */
+    margin: 0 auto;
   }
   svg {
+    width: 100%; /* 宽度自适应 */
+    height: auto; /* 高度自动调整 */
+    max-width: 100%;
+    height: auto;
     border: 2px solid #AFC2CB; /* 与Flip the Nine的玩家1色系保持一致 */
     background-color: #fff;
     border-radius: 10px;
@@ -29,12 +38,12 @@
   }
   .info {
     margin-top: 20px;
-    font-size: 1.2em;
+    font-size: 1em; /* 调整信息字体大小 */
     font-weight: bold;
   }
   .version {
     margin-top: 30px;
-    font-size: 0.9em;
+    font-size: 0.8em; /* 调整版本信息字体大小 */
     color: #666;
   }
   .controls {
@@ -82,6 +91,19 @@
     stroke-width: 2;
     stroke-dasharray: 4;
   }
+
+  /* 响应式调整 */
+  @media (max-width: 600px) {
+    h1 {
+      font-size: 1.2em;
+    }
+    .info {
+      font-size: 0.9em;
+    }
+    .version {
+      font-size: 0.7em;
+    }
+  }
 </style>
 </head>
 <body>
@@ -89,7 +111,7 @@
 <h1>分形三角<br>(Fractal Triangle)</h1>
 
 <div class="game-container">
-  <svg id="triangleSvg" width="500" height="500">
+  <svg id="triangleSvg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
     <!-- 等边三角形 -->
     <polygon id="equilateralTriangle" points="" fill="#AFC2CB" stroke="#333" stroke-width="2"/>
     <!-- 顶点标记 -->
@@ -122,8 +144,8 @@
   const previewLine = document.getElementById('previewLine');
   const previewMidpoint = document.getElementById('previewMidpoint');
 
-  const width = svg.clientWidth;
-  const height = svg.clientHeight;
+  const width = 500; // SVG的viewBox宽度
+  const height = 500; // SVG的viewBox高度
 
   // 计算等边三角形的顶点坐标
   const side = 400;
@@ -183,8 +205,8 @@
     if (selectedVertex === null) return; // 未选择顶点，无法选择内部点
 
     const rect = svg.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = (e.clientX - rect.left) * (width / rect.width);
+    const y = (e.clientY - rect.top) * (height / rect.height);
 
     // 检查鼠标是否在三角形内部
     if (isPointInTriangle({x, y}, vertices[0], vertices[1], vertices[2])) {
@@ -217,8 +239,8 @@
     if (selectedVertex === null) return; // 未选择顶点
 
     const rect = svg.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = (e.clientX - rect.left) * (width / rect.width);
+    const y = (e.clientY - rect.top) * (height / rect.height);
 
     // 检查点击是否在三角形内部
     if (!isPointInTriangle({x, y}, vertices[0], vertices[1], vertices[2])) return;
