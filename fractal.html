@@ -49,21 +49,36 @@
       margin-top: 20px;
     }
 
-    .button {
+    .button, #stepsInput {
       padding: 10px 15px;
       font-size: 1em;
-      background: #ccc;
       border-radius: 5px;
       text-decoration: none;
       color: #000;
       margin: 5px;
       cursor: pointer;
-      border: none;
-      transition: background 0.3s;
+      /* border: none; */
+      border: 2px solid #ccc; /* 增加灰色边框 */
+      transition: background 0.3s, background-color 0.3s;
+    }
+
+    .button {
+      background: #ccc;
     }
 
     .button:hover {
       background: #bbb;
+    }
+
+    #stepsInput {
+      width: 80px;
+      text-align: center;
+      background: #eee;
+    }
+
+    #stepsInput:read-only {
+      background: #ddd; /* 只读时颜色更浅，以示区别 */
+      cursor: not-allowed;
     }
 
     .version {
@@ -85,13 +100,6 @@
       stroke-width: 2;
       visibility: hidden;
       pointer-events: none;
-    }
-
-    input[type="number"] {
-      padding: 5px;
-      width: 80px;
-      text-align: center;
-      margin-right: 10px;
     }
 
     @media (max-width: 600px) {
@@ -127,7 +135,7 @@
     <a href="index.html" class="button">返回主页</a>
   </div>
 
-  <p class="version">Version: 1.5</p>
+  <p class="version">Version: 1.6</p>
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -156,7 +164,7 @@
       let currentPoint = null;
       let isPlaying = false; 
       let steps = 10;
-      let stage = 0; // 0: 等待初始化, 1: 等待初始点选择
+      let stage = 0; //0:等用户更改次数,1:等用户点初始点
 
       function initGame() {
         pointsGroup.innerHTML = "";
@@ -174,7 +182,7 @@
         const newPoint = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         newPoint.setAttribute("cx", point.x);
         newPoint.setAttribute("cy", point.y);
-        newPoint.setAttribute("r", 3);
+        newPoint.setAttribute("r", 2); // 红点半径
         newPoint.setAttribute("fill", color);
         pointsGroup.appendChild(newPoint);
       }
@@ -214,7 +222,6 @@
         let lineTime = 100; // 默认0.1秒 = 100ms
         if (steps > 100) {
           lineTime = (10 / steps) * 1000; 
-          if (lineTime < 50) lineTime = 50; // 设置一个最小显示时间保证可见
         }
 
         function nextStep() {
@@ -243,7 +250,7 @@
         nextStep();
       }
 
-      // 当用户在三角形内点击选初始点
+      // 用户点击选择初始点
       svg.addEventListener("click", (e) => {
         if (isPlaying || stage !== 1) return; 
         const rect = svg.getBoundingClientRect();
@@ -255,7 +262,6 @@
         currentPoint = { x, y };
         drawPoint(currentPoint, "red");
         infoText.textContent = `正在自动绘制...`;
-        // 用户选初始点后立即开始生成
         playFractal(steps);
       });
 
@@ -264,15 +270,17 @@
         steps = parseInt(stepsInput.value, 10) || 10;
         initGame();
         // 修改后重新开始 = 等待用户选择初始点
-        infoText.textContent = "在三角形内点击选择一个初始点";
-        stage = 1; // 准备选择初始点
+        infoText.textContent = "在三角形内点击选择初始点";
+        stage = 1; 
       });
 
       // 初始化
       initGame();
-      // 初始时等待用户修改步骤
-      stage = 1; // 刚进入页面时也可直接选择点,若不需要可设stage=0等用户改参数
+      // 默认stage=0等待用户修改次数，用户一修改，就变为stage=1
+      // 用户先修改重复次数，然后点击三角形内选择初始点开始
 
+      // 为了避免用户不修改次数就直接点，可直接设初始为stage=1：
+      // 但要求是修改后开始，这里先不设，用户修改后就变成stage=1
     });
   </script>
 
