@@ -97,8 +97,8 @@
 
     #previewLine {
       stroke: #FF0000;
-      stroke-width: 2;
-      visibility: hidden;
+      stroke-width: 1;
+      /* visibility: hidden; */
       pointer-events: none;
     }
 
@@ -173,9 +173,10 @@
         stage = 0;
         previewLine.setAttribute("visibility", "hidden");
         triangle.setAttribute("points", vertices.map(v => `${v.x},${v.y}`).join(" "));
-        infoText.textContent = "修改重复次数后，在三角形内选择初始点";
+        infoText.textContent = "在三角形内选择初始点";
         stepCountText.textContent = "当前点：0";
         stepsInput.removeAttribute("readonly");
+        stage = 1; 
       }
 
       function drawPoint(point, color) {
@@ -219,10 +220,7 @@
         stepsInput.setAttribute("readonly", "true"); // 播放过程中只读
 
         let count = 0;
-        let lineTime = 100; // 默认0.1秒 = 100ms
-        if (steps > 100) {
-          lineTime = (10 / steps) * 1000; 
-        }
+        let lineTime = 1000; // 默认0.1秒 = 100ms
 
         function nextStep() {
           if (count >= steps) {
@@ -236,13 +234,14 @@
           drawLine(currentPoint, selectedVertex);
 
           const midPoint = calculateMidpoint(currentPoint, selectedVertex);
+          drawPoint(midPoint, "red");
+          currentPoint = midPoint;
 
           setTimeout(() => {
-            hideLine();
-            drawPoint(midPoint, "red");
-            currentPoint = midPoint;
             count++;
+            lineTime = lineTime * 0.9; 
             stepCountText.textContent = `当前点：${count}`;
+            hideLine();
             nextStep();
           }, lineTime);
         }
@@ -271,7 +270,6 @@
         initGame();
         // 修改后重新开始 = 等待用户选择初始点
         infoText.textContent = "在三角形内点击选择初始点";
-        stage = 1; 
       });
 
       // 初始化
