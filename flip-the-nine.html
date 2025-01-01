@@ -82,6 +82,16 @@
   .back-button:hover {
     background: #bbb;
   }
+
+  .fireworks {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+  }
 </style>
 </head>
 <body>
@@ -96,9 +106,11 @@
   <p id="winnerMsg"></p>
 </div>
 
-<div class="version">Version: 1.0</div>
+<div class="version">Version: 1.1</div>
 
 <a href="index.html" class="back-button">返回主页</a>
+
+<canvas id="fireworksCanvas" class="fireworks"></canvas>
 
 <script>
 // 游戏数据
@@ -252,6 +264,87 @@ function announceWinner(player) {
   cells.forEach(cell => {
     cell.removeEventListener('click', onCellClick);
   });
+  // 显示烟花效果
+  startFireworks();
+}
+
+// 烟花效果
+function startFireworks() {
+  const canvas = document.getElementById('fireworksCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const fireworks = [];
+  const particles = [];
+
+  function createFirework(x, y) {
+    const firework = {
+      x: x,
+      y: y,
+      age: 0,
+      maxAge: 100,
+      particles: []
+    };
+    for (let i = 0; i < 100; i++) {
+      firework.particles.push({
+        x: x,
+        y: y,
+        angle: Math.random() * 2 * Math.PI,
+        speed: Math.random() * 5 + 2,
+        age: 0,
+        maxAge: 100,
+        color: `hsl(${Math.random() * 360}, 100%, 50%)`
+      });
+    }
+    fireworks.push(firework);
+  }
+
+  function updateFireworks() {
+    for (let i = fireworks.length - 1; i >= 0; i--) {
+      const firework = fireworks[i];
+      firework.age++;
+      if (firework.age > firework.maxAge) {
+        fireworks.splice(i, 1);
+        continue;
+      }
+      for (const particle of firework.particles) {
+        particle.age++;
+        if (particle.age > particle.maxAge) continue;
+        particle.x += Math.cos(particle.angle) * particle.speed;
+        particle.y += Math.sin(particle.angle) * particle.speed;
+        particle.speed *= 0.98;
+      }
+    }
+  }
+
+  function drawFireworks() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const firework of fireworks) {
+      for (const particle of firework.particles) {
+        if (particle.age > particle.maxAge) continue;
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, 2, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+  }
+
+  function loop() {
+    updateFireworks();
+    drawFireworks();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('click', (e) => {
+    createFirework(e.clientX, e.clientY);
+  });
+
+  loop();
+  setInterval(() => {
+    createFirework(Math.random() * canvas.width, Math.random() * canvas.height);
+  }, 1000);
 }
 
 /**
